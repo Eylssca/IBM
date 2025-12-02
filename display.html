@@ -443,14 +443,14 @@
 
     // Hugging Face Inference API configuration
     // Get your token from https://huggingface.co/settings/tokens (create a READ type token)
-    const HF_API_TOKEN = "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"; // Replace with your actual HF token
+    const HF_API_TOKEN = "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"; // Replace with your actual HF token
     // Use a free/fast model for text generation
     const HF_MODEL_ID = "meta-llama/Meta-Llama-3-8B-Instruct";
 
     // After init, make a quick (read-only) check to validate key/model availability
     // and show helpful debug messages.
     async function verifyModel() {
-      if (!HF_API_TOKEN || HF_API_TOKEN.includes("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")) {
+      if (!HF_API_TOKEN || HF_API_TOKEN.includes("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")) {
         debugEl.textContent = 'Hugging Face API token is missing. Set HF_API_TOKEN in the code.';
         return;
       }
