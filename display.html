@@ -350,328 +350,188 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-  <script>
-    const filterEl = document.getElementById('ai-filter');
-    const lyricTitleEl = document.getElementById('lyric-title');
-    const lyricBodyEl = document.getElementById('lyric-body');
-    const debugEl = document.getElementById('ai-debug');
-    const moodPill = document.getElementById('mood-pill');
-    const liveCommentsEl = document.getElementById('live-comments');
+// ... (lines 1-383 of the HTML and CSS) ...
+    <script>
+        // --- UI ELEMENTS ---
+        const stageEffectEl = document.getElementById('stage-effect');
+        const mcLineEl = document.getElementById('mc-line');
+        const debugEl = document.getElementById('debug-info');
+        const commentListEl = document.getElementById('comment-list');
 
-    // Firebase config: REPLACE with your config values
-    const firebaseConfig = {
-        apiKey: "AIzaSyC34piii16GqYm_It_O4Qm3-5J-j0eJg4w",
-        authDomain: "live-show-comments.firebaseapp.com",
-        projectId: "live-show-comments",
-        storageBucket: "live-show-comments.firebasestorage.app",
-        messagingSenderId: "682418279340",
-        appId: "1:682418279340:web:e97f0d4c1317eacddc2009",
-        databaseURL: "https://live-show-comments-default-rtdb.asia-southeast1.firebasedatabase.app/"
-    };
+        // --- HUGGING FACE CONFIG ---
+        // !!! IMPORTANT: REPLACE "YOUR_HUGGING_FACE_TOKEN_HERE" with your actual HF key. !!!
+        const HF_TOKEN = "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"; 
+        
+        // This is the model you know is accessible in HK.
+        const MODEL_ID = "meta-llama/Meta-Llama-3-8B-Instruct"; 
+        
+        // --- CORS PROXY CONFIG ---
+        // We use a public proxy to bypass the CORS block.
+        // NOTE: This sends your API key through a third-party service (Corsfix).
+        // REVOKE KEY IMMEDIATELY AFTER THE DEMO.
+        const CORS_PROXY = 'https://proxy.corsfix.com/'; 
+        const TARGET_ENDPOINT = `https://api-inference.huggingface.co/models/${MODEL_ID}`;
+        
+        // Final endpoint is the proxy prepended to the target.
+        const FINAL_API_ENDPOINT = `${CORS_PROXY}${TARGET_ENDPOINT}`;
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    // Use a root ref to allow removal on load, and a query for last-20 listening
-    const commentsRootRef = db.ref("comments");
-    const commentsRef = commentsRootRef.limitToLast(20);
+        // --- FIREBASE CONFIG (Kept the same) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC34piii16GqYm_It_O4Qm3-5J-j0eJg4w",
+            authDomain: "live-show-comments.firebaseapp.com",
+            projectId: "live-show-comments",
+            storageBucket: "live-show-comments.firebasestorage.app",
+            messagingSenderId: "682418279340",
+            appId: "1:682418279340:web:e97f0d4c1317eacddc2009",
+            databaseURL: "https://live-show-comments-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
 
-    // Clear comment records on every page load (server-side removal).
-    // This ensures records are reset each refresh as requested.
-    commentsRootRef.remove()
-      .then(() => { debugEl.textContent = 'Comment records cleared on page load.'; })
-      .catch((e) => { console.warn('Failed to clear comments:', e); });
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const commentsRootRef = db.ref("comments");
+        const commentsRef = commentsRootRef.limitToLast(20);
+        
+        // --- STATE VARIABLES & INIT ---
+        let aiRunning = false;
+        let pendingRun = false;
+        let pendingComments = null;
 
-    // Store recent comments locally
-    let recentComments = [];
-
-    // For every incoming message: show floating UI and trigger AI analysis (serialized)
-    commentsRef.on("child_added", async (snapshot) => {
-      const data = snapshot.val();
-      if (!data?.text) return;
-
-      recentComments.push(data.text);
-      if (recentComments.length > 10) recentComments.shift();
-      updateLiveFeed();
-      showFloatingComment(data.text);
-
-      // Immediately analyze each incoming message. We pass only the single new message
-      // so the director reacts to the latest audience input. aiRunning/pendingRun
-      // ensures calls are serialized when many users send simultaneously.
-      analyzeCrowdWithAI([data.text]);
-    });
-
-    // Show a floating comment on the stage for a few seconds
-    function showFloatingComment(text) {
-      const wrapper = document.getElementById('stage-wrapper');
-      if (!wrapper) return;
-      const el = document.createElement('div');
-      el.className = 'floating-comment';
-      el.textContent = text;
-
-      // random position within wrapper (avoid edges)
-      const w = wrapper.clientWidth;
-      const h = wrapper.clientHeight;
-      const left = Math.max(8, Math.floor(Math.random() * (w - 160)));
-      const top = Math.max(8, Math.floor(Math.random() * (h - 60)));
-      el.style.left = `${left}px`;
-      el.style.top = `${top}px`;
-
-      // slight random rotation to make it non-directional
-      el.style.transform = `rotate(${(Math.random()-0.5)*12}deg)`;
-
-      wrapper.appendChild(el);
-
-      // remove after animation duration + small buffer (5s animation → remove at ~5200ms)
-      setTimeout(() => {
-        el.remove();
-      }, 5200);
-    }
-
-    // Restore missing UI helpers
-    function updateLiveFeed() {
-      liveCommentsEl.innerHTML = recentComments.length
-        ? recentComments.map(c => `<div style="margin: 2px 0; opacity: 0.8;">${escapeHtml(c)}</div>`).join('')
-        : 'No comments yet...';
-      liveCommentsEl.scrollTop = liveCommentsEl.scrollHeight;
-    }
-
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    // Hugging Face Inference API configuration
-    // Get your token from https://huggingface.co/settings/tokens (create a READ type token)
-    const HF_API_TOKEN = "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"; // Replace with your actual HF token
-    // Use a free/fast model for text generation
-    const HF_MODEL_ID = "meta-llama/Meta-Llama-3-8B-Instruct";
-
-    // After init, make a quick (read-only) check to validate key/model availability
-    // and show helpful debug messages.
-    async function verifyModel() {
-      if (!HF_API_TOKEN || HF_API_TOKEN.includes("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")) {
-        debugEl.textContent = 'Hugging Face API token is missing. Set HF_API_TOKEN in the code.';
-        return;
-      }
-      debugEl.textContent = 'Checking Hugging Face model availability...';
-      try {
-        const resp = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL_ID}`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${HF_API_TOKEN}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            inputs: "test",
-            parameters: { max_new_tokens: 5 }
-          })
-        });
-        if (!resp.ok) {
-          debugEl.textContent = `Hugging Face model check failed: HTTP ${resp.status}. Check token and model ID.`;
-          return;
+        if (HF_TOKEN === "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") {
+             debugEl.textContent = "⚠️ WARNING: Hugging Face Token not set. Please update the script in display.html!";
+        } else {
+             debugEl.textContent = "System Ready (via Corsfix Proxy). Waiting for crowd comments on Firebase.";
         }
-        debugEl.textContent = `Hugging Face model "${HF_MODEL_ID}" is ready. Real AI calls will be attempted on incoming messages.`;
-      } catch (e) {
-        debugEl.textContent = `Model verification error: ${e.message}`;
-      }
-    }
 
-    // call verification once (non-blocking)
-    verifyModel();
+        // Clear comment records on every page load
+        commentsRootRef.remove().catch((e) => { console.warn('Failed to clear comments:', e); });
 
-    // AI call locking to avoid concurrent requests when many users send at the same time
-    let aiRunning = false;
-    let pendingRun = false;
-    let pendingComments = null;
+        // --- FIREBASE LISTENER ---
+        commentsRef.on("child_added", async (snapshot) => {
+            const data = snapshot.val();
+            if (!data?.text) return;
 
-    // Call AI to analyze recent comments and get stage plan
-    async function analyzeCrowdWithAI(comments) {
-      // If an AI request is already running, queue the latest comments and return.
-      if (aiRunning) {
-        pendingRun = true;
-        pendingComments = comments;
-        debugEl.textContent = "🤖 AI busy — queued latest comments.";
-        return;
-      }
-      aiRunning = true;
-      debugEl.textContent = "🤖 AI analyzing crowd...";
-      try {
-        // Prompt for Hugging Face model: request JSON output with specific keys
-        const prompt = `You are an AI show director. Analyze these live crowd comments and output ONLY valid JSON (no markdown, no code fences):
- {
-   "effect": "LASER_BURST|ENCORE_GOLD|STROBE_RED|STROBE_BLUE|PULSE_NEON|FIREWORKS|SPARKLE|CHILL_WAVE|COZY_MODE|RAINBOW_FLOW",
-   "primaryColor": "#rrggbb",
-   "intensity": 0.1-1.0,
-   "mcLine": "short hype MC line (20 words max)",
-   "explanation": "why this choice (30 words max)"
- }
- Comments:
- - ${comments.join('\n- ')}
-
- Choose an effect and intensity according to crowd energy; intensity should reflect how strong the lighting should be (0.1 = very light, 1.0 = maximum). Output ONLY the JSON object.`;
-
-        // Send prompt to Hugging Face directly
-        const response = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL_ID}`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${HF_API_TOKEN}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            inputs: prompt,
-            parameters: { max_new_tokens: 250, temperature: 0.3 }
-          })
+            // Update UI list
+            const li = document.createElement('li');
+            li.textContent = `[${new Date(data.ts).toLocaleTimeString()}] ${data.text}`;
+            commentListEl.prepend(li);
+            if (commentListEl.children.length > 10) {
+                commentListEl.removeChild(commentListEl.lastChild);
+            }
+            
+            // Immediately analyze the new comment
+            analyzeCrowdWithAI([data.text]);
         });
+        
+        // --- AI LOGIC (HF Inference API Structure) ---
 
-         if (!response.ok) {
-           const errText = await response.text().catch(()=>'<no-body>');
-           debugEl.textContent = `Hugging Face HTTP ${response.status}: ${errText}`;
-           aiRunning = false;
-           if (pendingRun) { pendingRun=false; analyzeCrowdWithAI(pendingComments); pendingComments=null; }
-           return;
-         }
+        function extractJSONFromText(text) {
+            try {
+                // This regex captures content between the first { and the last }
+                const match = text.match(/\{[\s\S]*\}/);
+                if (match) {
+                    return JSON.parse(match[0]);
+                }
+            } catch (e) {
+                console.error("Failed to parse JSON:", e, "Raw Text:", text);
+            }
+            return null;
+        }
 
-        const data = await response.json().catch(e => { debugEl.textContent = `AI proxy response parse error: ${e.message}`; return null; });
-         if (!data) {
-           aiRunning = false;
-           if (pendingRun) { pendingRun=false; analyzeCrowdWithAI(pendingComments); pendingComments=null; }
-           return;
-         }
+        async function analyzeCrowdWithAI(comments) {
+            if (aiRunning || HF_TOKEN === "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") {
+                if (aiRunning) {
+                   pendingRun = true;
+                   pendingComments = comments;
+                }
+                return;
+            }
+            
+            aiRunning = true;
+            debugEl.textContent = "🤖 AI analyzing crowd comments via Hugging Face (via CORS Proxy)...";
+            
+            const prompt = `You are an AI show director. Analyze these live crowd comments and determine the stage effect, primary color (hex code), intensity (0.1-1.0), and a short MC line (20 words max).
+            
+            Comments:
+            - ${comments.join('\n- ')}
 
-        // Extract generated text from Hugging Face response (array with generated_text field)
-        const rawText = (Array.isArray(data) && data[0]?.generated_text) ? data[0].generated_text
-                        : data?.generated_text || data?.text || data?.output?.[0]?.text || null;
+            Output ONLY a single JSON object. Do not include markdown fences (like \`\`\`). The JSON structure MUST be:
+            {"effect": "LASER_BURST|ENCORE_GOLD|STROBE_RED|STROBE_BLUE|PULSE_NEON|FIREWORKS|SPARKLE|CHILL_WAVE|COZY_MODE|RAINBOW_FLOW", "primaryColor": "#ffc857", "intensity": 0.5, "mcLine": "This is the line.", "explanation": "Brief reason for choice."}
+            `;
 
-         if (!rawText) {
-           debugEl.textContent = 'Hugging Face response missing generated_text field.';
-           aiRunning = false;
-           if (pendingRun) { pendingRun=false; analyzeCrowdWithAI(pendingComments); pendingComments=null; }
-           return;
-         }
+            try {
+                const response = await fetch(FINAL_API_ENDPOINT, {
+                    method: "POST",
+                    // NOTE: The Authorization header containing the key is sent to the PROXY first.
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${HF_TOKEN}`
+                    },
+                    body: JSON.stringify({
+                        inputs: prompt,
+                        parameters: {
+                            max_new_tokens: 256, 
+                            temperature: 0.5,
+                        }
+                    })
+                });
 
-         const cleaned = extractJSONFromText(typeof rawText === 'object' ? JSON.stringify(rawText) : String(rawText));
-          if (!cleaned) {
-           debugEl.textContent = 'Hugging Face response did not contain valid JSON.';
-           aiRunning = false;
-           if (pendingRun) { pendingRun=false; analyzeCrowdWithAI(pendingComments); pendingComments=null; }
-           return;
-         }
+                if (!response.ok) {
+                    const errorDetails = await response.json().catch(() => ({error: "Non-JSON response"}));
+                    debugEl.textContent = `Proxy/Hugging Face API Error: ${response.status}. Details: ${errorDetails.error || 'Unknown Error'}.`;
+                    return;
+                }
 
-          let plan;
-          try {
-            plan = JSON.parse(cleaned);
-          } catch (e) {
-            debugEl.textContent = `JSON parse error: ${e.message}`;
-            aiRunning = false;
-            if (pendingRun) { pendingRun=false; analyzeCrowdWithAI(pendingComments); pendingComments=null; }
-            return;
-          }
-          applyStagePlan(plan);
-          debugEl.textContent = `AI Plan: ${plan.effect} (${Math.round((plan.intensity ?? 0.5)*100)}%)`;
-       } catch (e) {
-         debugEl.textContent = `Hugging Face error: ${e.message}`;
-         moodPill.textContent = 'Mood: —';
-       } finally {
-         aiRunning = false;
-         if (pendingRun) {
-           pendingRun = false;
-           const toRun = pendingComments || comments;
-           pendingComments = null;
-           // fire next run (don't await here to avoid blocking)
-           analyzeCrowdWithAI(toRun);
-         }
-       }
-     }
+                const data = await response.json();
+                const rawText = data?.[0]?.generated_text;
 
-    // Extract JSON substring from text (handles ```json ``` fences and backticks)
-    function extractJSONFromText(text) {
-      // try to find the first "{" and last "}" that make valid JSON
-      const first = text.indexOf('{');
-      const last = text.lastIndexOf('}');
-      if (first === -1 || last === -1 || last <= first) return null;
-      const candidate = text.slice(first, last + 1);
-      return candidate;
-    }
+                if (!rawText) {
+                    debugEl.textContent = 'Hugging Face response missing generated text.';
+                    return;
+                }
+                
+                const plan = extractJSONFromText(rawText);
 
-    // Manual/local AI helpers removed — real AI only.
+                if (plan && plan.effect) {
+                    applyStagePlan(plan);
+                    debugEl.textContent = `✅ AI Plan: ${plan.effect} (${Math.round((plan.intensity ?? 0.5)*100)}%). MC: "${plan.mcLine}". Reason: ${plan.explanation}`;
+                } else {
+                    debugEl.textContent = `❌ Failed to parse valid plan from AI. Raw: ${rawText}`;
+                }
 
-    function applyStagePlan(plan) {
-      // Map incoming intensity (0.1-1.0) to percent and category (1..10)
-      const inIntensity = Math.max(0.0, Math.min(1.0, plan.intensity ?? 0.5));
-      const percent = Math.round(inIntensity * 100);
-      const category = percent === 0 ? 0 : Math.min(9, Math.ceil(percent / 10) - 1);
-      const strength = (category + 1) / 10; // 0.1 .. 1.0
+            } catch (e) {
+                debugEl.textContent = `❌ Final Network Error: ${e.message}. The proxy may be down, or the issue persists.`;
+            } finally {
+                aiRunning = false;
+                if (pendingRun) {
+                    pendingRun = false;
+                    const toRun = pendingComments;
+                    pendingComments = null;
+                    analyzeCrowdWithAI(toRun);
+                }
+            }
+        }
 
-      // 10-category → effect mapping (light → strong) with base (pale) and vivid colors + mood label
-      const EFFECT_MAP = [
-        { effect: 'SPARKLE',      baseColor: '#e6f7ff', vividColor: '#7fd3ff',  mood: '✨ Calm'    }, // 1
-        { effect: 'CHILL_WAVE',   baseColor: '#eafcff', vividColor: '#4fd1e0',  mood: '🌊 Chill'   }, // 2
-        { effect: 'COZY_MODE',    baseColor: '#eef6ff', vividColor: '#60a5fa',  mood: '🌙 Cozy'    }, // 3
-        { effect: 'PULSE_NEON',   baseColor: '#f0fff4', vividColor: '#34d399',  mood: '💡 Pulse'   }, // 4
-        { effect: 'STROBE_BLUE',  baseColor: '#f2f8ff', vividColor: '#3b82f6',  mood: '🔵 Strobe'  }, // 5
-        { effect: 'STROBE_RED',   baseColor: '#fff3f3', vividColor: '#ef4444',  mood: '🔴 Strobe'  }, // 6
-        { effect: 'LASER_BURST',  baseColor: '#fff0fb', vividColor: '#ff6ec7',  mood: '⚡ Laser'    }, // 7
-        { effect: 'FIREWORKS',    baseColor: '#fff8f0', vividColor: '#ffb020',  mood: '🎆 Fireworks'}, // 8
-        { effect: 'ENCORE_GOLD',  baseColor: '#fff9f2', vividColor: '#ffc857',  mood: '✨ Encore'   }, // 9
-        { effect: 'RAINBOW_FLOW', baseColor: '#fff6fb', vividColor: '#ff4da6',  mood: '🌈 Riot'     }  // 10
-      ];
+        // --- STAGE VISUALS CONTROL ---
+        function applyStagePlan(plan) {
+            // 1. Apply the primary color and intensity
+            const intensity = Math.max(0.1, Math.min(1.0, plan.intensity || 0.5));
+            const color = plan.primaryColor || '#FFFFFF'; 
 
-      const chosen = EFFECT_MAP[category];
+            stageEffectEl.style.opacity = intensity;
+            stageEffectEl.style.backgroundColor = color;
+            
+            // 2. Apply the specific effect class
+            stageEffectEl.className = 'effect-' + (plan.effect || 'LASER_BURST');
+            
+            // 3. Display the MC line
+            mcLineEl.textContent = plan.mcLine || "Let's make some noise!";
+            mcLineEl.style.opacity = 1;
 
-      // Mix a pale base color and a vivid color according to strength so low categories look pale/calm and high are vivid/sharp
-      function mixHexColors(a, b, t) {
-        const pa = a.replace('#','');
-        const pb = b.replace('#','');
-        const ar = parseInt(pa.substring(0,2),16), ag = parseInt(pa.substring(2,4),16), ab = parseInt(pa.substring(4,6),16);
-        const br = parseInt(pb.substring(0,2),16), bg = parseInt(pb.substring(2,4),16), bb = parseInt(pb.substring(4,6),16);
-        const rr = Math.round(ar + (br - ar) * t);
-        const rg = Math.round(ag + (bg - ag) * t);
-        const rb = Math.round(ab + (bb - ab) * t);
-        return `#${rr.toString(16).padStart(2,'0')}${rg.toString(16).padStart(2,'0')}${rb.toString(16).padStart(2,'0')}`;
-      }
-
-      const primaryHex = plan.primaryColor || mixHexColors(chosen.baseColor, chosen.vividColor, strength);
-      const vividHex = mixHexColors(chosen.baseColor, chosen.vividColor, Math.min(1, strength + 0.25));
-
-      // Visual strength depends on category (increasing): change opacity, saturation, blur → sharpness
-      filterEl.style.background = `radial-gradient(circle at 50% 20%, ${hexWithAlpha(primaryHex, 0.25 + strength*0.6)}, transparent 70%)`;
-      filterEl.style.opacity = 0.08 + strength * 0.9; // subtle -> bold
-
-      // Beams become more opaque, more saturated, and sharper as strength increases
-      document.querySelectorAll('.beam').forEach((b, i) => {
-        const beamOpacity = (0.03 + strength * 0.85);
-        b.style.opacity = beamOpacity.toString();
-        // blur reduces with strength to make beams sharper at high intensity
-        const blurPx = Math.max(0.5, 4 - (strength * 3.5));
-        b.style.filter = `blur(${blurPx}px)`;
-        b.style.background = `radial-gradient(circle at 50% 0%, ${hexWithAlpha(vividHex, 0.95)}, transparent 65%)`;
-      });
-
-      // Platform glow stronger and more vivid with strength
-      const stagePlatform = document.getElementById('stage-platform');
-      if (stagePlatform) {
-        const glowSize = 8 + (strength * 120);
-        stagePlatform.style.boxShadow = `0 0 ${glowSize}px ${hexWithAlpha(vividHex, 0.9 * strength)}`;
-      }
-
-      // Update lyric / UI; show the category-mapped effect and mood
-      lyricTitleEl.textContent = plan.mcLine || 'AI MC reacting to the crowd...';
-      lyricBodyEl.textContent =
-        `Effect: ${chosen.effect}\nIntensity: ${percent}% (category ${category + 1}/10)\n\n${plan.explanation || ''}`;
-
-      const moodLabel = chosen.mood || '🎨 Scene';
-      moodPill.textContent = 'Mood: ' + moodLabel;
-      debugEl.textContent += `\n\n[Displayed plan: ${percent}% → category ${category + 1} → ${chosen.effect} / ${moodLabel}]`;
-    }
-
-    function hexWithAlpha(hex, alpha) {
-      const c = hex.replace('#', '');
-      const r = parseInt(c.substring(0, 2), 16);
-      const g = parseInt(c.substring(2, 4), 16);
-      const b = parseInt(c.substring(4, 6), 16);
-      return `rgba(${r},${g},${b},${alpha})`;
-    }
-  </script>
+            // Fade the MC line out after a few seconds
+            setTimeout(() => {
+                mcLineEl.style.opacity = 0;
+            }, 5000);
+        }
+    </script>
 </body>
 </html>
