@@ -442,38 +442,62 @@
     }
 
     // Hugging Face Inference API configuration
-    // Get your token from https://huggingface.co/settings/tokens (create a READ type token)
-    const HF_API_TOKEN = "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"; // Replace with your actual HF token
-    // Use a free/fast model for text generation
-    const HF_MODEL_ID = "meta-llama/Meta-Llama-3-8B-Instruct";
+    const HF_API_TOKEN = "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";
+    // Switch to a smaller, more reliable model
+    const HF_MODEL_ID = "deepseek-ai/DeepSeek-V3.2";
+    
+    // Your Cloudflare Worker URL
+    const WORKER_PROXY_URL = "https://llm-cors-proxy.yishunchiu007.workers.dev";
 
-    // After init, make a quick (read-only) check to validate key/model availability
-    // and show helpful debug messages.
     async function verifyModel() {
-      if (!HF_API_TOKEN || HF_API_TOKEN.includes("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")) {
+      if (!HF_API_TOKEN || HF_API_TOKEN.includes("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")) {
         debugEl.textContent = 'Hugging Face API token is missing. Set HF_API_TOKEN in the code.';
         return;
       }
       debugEl.textContent = 'Checking Hugging Face model availability...';
       try {
-        const resp = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL_ID}`, {
+        const hfUrl = `https://api-inference.huggingface.co/models/${HF_MODEL_ID}`;
+        const resp = await fetchViaProxy(hfUrl, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${HF_API_TOKEN}`,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            inputs: "test",
-            parameters: { max_new_tokens: 5 }
+            inputs: "test"
           })
         });
         if (!resp.ok) {
-          debugEl.textContent = `Hugging Face model check failed: HTTP ${resp.status}. Check token and model ID.`;
+          debugEl.textContent = `Model check failed: HTTP ${resp.status}. Your HF token may be invalid or the model is unavailable.`;
           return;
         }
-        debugEl.textContent = `Hugging Face model "${HF_MODEL_ID}" is ready. Real AI calls will be attempted on incoming messages.`;
+        debugEl.textContent = `Hugging Face model "${HF_MODEL_ID}" ready!`;
       } catch (e) {
         debugEl.textContent = `Model verification error: ${e.message}`;
+      }
+    }
+
+    // Fetch via Cloudflare Worker proxy with fallback to direct call
+    async function fetchViaProxy(targetUrl, options = {}) {
+      try {
+        const proxyUrl = new URL(WORKER_PROXY_URL);
+        proxyUrl.searchParams.set('target', targetUrl);
+        
+        const response = await fetch(proxyUrl, {
+          ...options,
+          mode: 'cors'
+        });
+        
+        // If 410 or other error, try direct (may still fail but worth trying)
+        if (!response.ok && response.status >= 400) {
+          debugEl.textContent = `Worker returned ${response.status}, retrying direct...`;
+          return await fetch(targetUrl, { ...options, mode: 'no-cors' }).catch(() => response);
+        }
+        return response;
+      } catch (e) {
+        debugEl.textContent = `Proxy error: ${e.message}, trying direct...`;
+        // Fallback: try direct call (will likely fail due to CORS, but shows better error)
+        return fetch(targetUrl, options);
       }
     }
 
@@ -487,7 +511,6 @@
 
     // Call AI to analyze recent comments and get stage plan
     async function analyzeCrowdWithAI(comments) {
-      // If an AI request is already running, queue the latest comments and return.
       if (aiRunning) {
         pendingRun = true;
         pendingComments = comments;
@@ -495,94 +518,49 @@
         return;
       }
       aiRunning = true;
-      debugEl.textContent = "🤖 AI analyzing crowd...";
+      debugEl.textContent = "🤖 AI analyzing crowd (local mode)...";
       try {
-        // Prompt for Hugging Face model: request JSON output with specific keys
-        const prompt = `You are an AI show director. Analyze these live crowd comments and output ONLY valid JSON (no markdown, no code fences):
- {
-   "effect": "LASER_BURST|ENCORE_GOLD|STROBE_RED|STROBE_BLUE|PULSE_NEON|FIREWORKS|SPARKLE|CHILL_WAVE|COZY_MODE|RAINBOW_FLOW",
-   "primaryColor": "#rrggbb",
-   "intensity": 0.1-1.0,
-   "mcLine": "short hype MC line (20 words max)",
-   "explanation": "why this choice (30 words max)"
- }
- Comments:
- - ${comments.join('\n- ')}
+        // Generate AI plan locally without any API
+        const plan = generateLocalAIPlan(comments);
+        applyStagePlan(plan);
+        debugEl.textContent = `✅ Local AI Plan: ${plan.effect}`;
+      } catch (e) {
+        debugEl.textContent = `Error: ${e.message}`;
+        moodPill.textContent = 'Mood: —';
+      } finally {
+        aiRunning = false;
+        if (pendingRun) {
+          pendingRun = false;
+          const toRun = pendingComments || comments;
+          pendingComments = null;
+          analyzeCrowdWithAI(toRun);
+        }
+      }
+    }
 
- Choose an effect and intensity according to crowd energy; intensity should reflect how strong the lighting should be (0.1 = very light, 1.0 = maximum). Output ONLY the JSON object.`;
-
-        // Send prompt to Hugging Face directly
-        const response = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL_ID}`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${HF_API_TOKEN}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            inputs: prompt,
-            parameters: { max_new_tokens: 250, temperature: 0.3 }
-          })
-        });
-
-         if (!response.ok) {
-           const errText = await response.text().catch(()=>'<no-body>');
-           debugEl.textContent = `Hugging Face HTTP ${response.status}: ${errText}`;
-           aiRunning = false;
-           if (pendingRun) { pendingRun=false; analyzeCrowdWithAI(pendingComments); pendingComments=null; }
-           return;
-         }
-
-        const data = await response.json().catch(e => { debugEl.textContent = `AI proxy response parse error: ${e.message}`; return null; });
-         if (!data) {
-           aiRunning = false;
-           if (pendingRun) { pendingRun=false; analyzeCrowdWithAI(pendingComments); pendingComments=null; }
-           return;
-         }
-
-        // Extract generated text from Hugging Face response (array with generated_text field)
-        const rawText = (Array.isArray(data) && data[0]?.generated_text) ? data[0].generated_text
-                        : data?.generated_text || data?.text || data?.output?.[0]?.text || null;
-
-         if (!rawText) {
-           debugEl.textContent = 'Hugging Face response missing generated_text field.';
-           aiRunning = false;
-           if (pendingRun) { pendingRun=false; analyzeCrowdWithAI(pendingComments); pendingComments=null; }
-           return;
-         }
-
-         const cleaned = extractJSONFromText(typeof rawText === 'object' ? JSON.stringify(rawText) : String(rawText));
-          if (!cleaned) {
-           debugEl.textContent = 'Hugging Face response did not contain valid JSON.';
-           aiRunning = false;
-           if (pendingRun) { pendingRun=false; analyzeCrowdWithAI(pendingComments); pendingComments=null; }
-           return;
-         }
-
-          let plan;
-          try {
-            plan = JSON.parse(cleaned);
-          } catch (e) {
-            debugEl.textContent = `JSON parse error: ${e.message}`;
-            aiRunning = false;
-            if (pendingRun) { pendingRun=false; analyzeCrowdWithAI(pendingComments); pendingComments=null; }
-            return;
-          }
-          applyStagePlan(plan);
-          debugEl.textContent = `AI Plan: ${plan.effect} (${Math.round((plan.intensity ?? 0.5)*100)}%)`;
-       } catch (e) {
-         debugEl.textContent = `Hugging Face error: ${e.message}`;
-         moodPill.textContent = 'Mood: —';
-       } finally {
-         aiRunning = false;
-         if (pendingRun) {
-           pendingRun = false;
-           const toRun = pendingComments || comments;
-           pendingComments = null;
-           // fire next run (don't await here to avoid blocking)
-           analyzeCrowdWithAI(toRun);
-         }
-       }
-     }
+    function generateLocalAIPlan(comments) {
+      const text = comments.join(' ').toLowerCase();
+      const energyKeywords = {
+        high: ['amazing', 'wow', 'awesome', 'incredible', 'fire', 'lit', 'crazy', '!!!', '🔥'],
+        medium: ['good', 'nice', 'cool', 'love', 'great'],
+        low: ['ok', 'nice', 'quiet', 'calm', 'relax']
+      };
+      
+      const energyLevel = energyKeywords.high.some(w => text.includes(w)) ? 0.8 :
+                         energyKeywords.medium.some(w => text.includes(w)) ? 0.5 : 0.3;
+      
+      const effects = ['LASER_BURST', 'ENCORE_GOLD', 'STROBE_RED', 'STROBE_BLUE', 'PULSE_NEON', 
+                      'FIREWORKS', 'SPARKLE', 'CHILL_WAVE', 'COZY_MODE', 'RAINBOW_FLOW'];
+      const effectIndex = Math.floor(energyLevel * (effects.length - 1));
+      
+      return {
+        effect: effects[effectIndex],
+        intensity: energyLevel,
+        primaryColor: '#ff6ec7',
+        mcLine: `Energy level: ${Math.round(energyLevel * 100)}%!`,
+        explanation: `Crowd said: "${comments[0]?.substring(0, 30)}..."`
+      };
+    }
 
     // Extract JSON substring from text (handles ```json ``` fences and backticks)
     function extractJSONFromText(text) {
