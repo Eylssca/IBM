@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <title>AI Show Director Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
 
     body {
       background: #050318;
@@ -58,16 +59,6 @@
         mix-blend-mode: screen;
     }
 
-    #crowd {
-      position: absolute;
-      inset: 0;
-      background-image: radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px);
-      background-size: 8px 8px;
-      opacity: 0.2;
-      mix-blend-mode: screen;
-      z-index: 3;
-    }
-
     #beam-layer {
       position: absolute;
       inset: 0;
@@ -96,20 +87,6 @@
       100% { transform: rotate(12deg);}
     }
 
-    /* hexagon stage platform */
-    #stage-platform {
-      position: absolute;
-      left: 50%; top: 60%;
-      transform: translate(-50%, -50%);
-      width: 55%;
-      aspect-ratio: 1 / 0.5;
-      background: linear-gradient(135deg,#ff8cf0,#ffc857);
-      clip-path: polygon(10% 0, 90% 0, 100% 50%, 90% 100%, 10% 100%, 0 50%);
-      box-shadow: 0 0 40px rgba(255,120,255,0.8);
-      z-index: 5;
-    }
-
-    /* AI color filter over everything */
     #ai-filter {
       position: absolute;
       inset: 0;
@@ -117,7 +94,6 @@
       background: radial-gradient(circle at 50% 20%, rgba(255,0,255,0.4), transparent 70%);
       opacity: 0.0;
       transition: opacity 0.4s ease, background 0.4s ease;
-      z-index: 6;
       pointer-events: none;
     }
 
@@ -135,7 +111,6 @@
       font-size: 13px;
       line-height: 1.4;
       overflow: hidden;
-      z-index: 7;
     }
 
     #lyric-title {
@@ -147,30 +122,6 @@
       opacity: 0.9;
       white-space: pre-wrap;
       font-size: 12px;
-    }
-
-    /* left username bubble */
-    #user-badge {
-      position: absolute;
-      left: 4%;
-      bottom: 12%;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: rgba(15,23,42,0.85);
-      backdrop-filter: blur(10px);
-      font-size: 13px;
-      z-index: 7;
-    }
-
-    #user-avatar {
-      width: 28px; height: 28px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 30% 20%, #fff, #f973ff);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px;
     }
 
     /* --- CONTROL PANEL --- */
@@ -191,45 +142,8 @@
       margin-bottom: 4px;
     }
 
-    .btn-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    button {
-      border-radius: 999px;
-      border: none;
-      padding: 6px 14px;
-      font-size: 13px;
-      cursor: pointer;
-      background: linear-gradient(135deg,#4f46e5,#ec4899);
-      color: #fff;
-      box-shadow: 0 0 12px rgba(79,70,229,0.6);
-      transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.2s;
-    }
-    button.secondary {
-      background: #111827;
-      box-shadow: none;
-      border: 1px solid #4b5563;
-    }
-    button:hover { transform: translateY(-1px); box-shadow: 0 0 16px rgba(236,72,153,0.7);}
-    button:active { transform: translateY(0); box-shadow: 0 0 8px rgba(236,72,153,0.5); }
-
-    textarea {
-      width: 100%;
-      min-height: 70px;
-      resize: vertical;
-      border-radius: 8px;
-      border: 1px solid #4b5563;
-      background: #020617;
-      color: #e5e7eb;
-      padding: 8px;
-      font-size: 13px;
-    }
-
     #ai-debug {
-      font-size: 11px;
+      font-size: 13px;
       color: #9ca3af;
       max-height: 90px;
       overflow: auto;
@@ -253,7 +167,7 @@
       background: rgba(15,23,42,0.5);
       border-radius: 8px;
       padding: 8px;
-      font-size: 11px;
+      font-size: 13px;
       line-height: 1.3;
       margin-top: 8px;
     }
@@ -291,19 +205,39 @@
   <div id="layout">
     <!-- LEFT: STAGE -->
     <div id="stage-wrapper">
-      <!-- USE EITHER IMAGE OR VIDEO BELOW BY UNCOMMENTING ONE -->
-
       <!-- Image background (default) -->
-      <img id="background-content" src="1.jpg" alt="Stage Background Image" style="z-index: 1;">
+      <!-- <img id="background-content" src="1.jpg" alt="Stage Background Image" style="z-index: 1;"> -->
 
-      <!-- Or video background (comment out the img above if using video) -->
-      <!--
+      <!-- Or video background -->      
       <video id="background-content" autoplay muted loop playsinline>
-        <source src="your-video.mp4" type="video/mp4" />
-        Your browser does not support the video tag.
+        <source src="1.mp4" type="video/mp4"/>
       </video>
-      -->
+      <script>
+        const video = document.getElementById('background-content');
 
+        // Detect if on mobile (iOS or Android)
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        if (isMobile) {
+          // Mobile: must be muted to autoplay
+          video.muted = true;
+          video.autoplay = true;
+        } else {
+          // Desktop: can have sound
+          video.muted = false;
+          video.autoplay = true;
+          // Optional: lower volume so it's not too loud
+          video.volume = 0.3;
+        }
+
+        // Ensure it starts playing (some browsers are strict)
+        video.play().catch(() => {
+          // If play() fails (very rare), fall back to muted autoplay
+          video.muted = true;
+          video.play();
+        });
+      </script>
+     
       <!-- Lighting effects ABOVE background -->
       <div id="beam-layer" style="z-index: 2;">
         <div class="beam b1"></div>
@@ -335,7 +269,6 @@
         No comments yet...
       </div>
 
-      <!-- lyric / chat wall moved to the right control panel -->
       <div id="lyric-wall" style="position:static; width:100%; max-height:160px; margin-top:8px; z-index:9;">
         <div id="lyric-title">Waiting for crowd...</div>
         <div id="lyric-body" style="font-size:12px; opacity:0.9;">Scan QR → Send comments → Watch AI react!</div>
@@ -351,233 +284,211 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <script>
-    const filterEl = document.getElementById('ai-filter');
-    const lyricTitleEl = document.getElementById('lyric-title');
-    const lyricBodyEl = document.getElementById('lyric-body');
-    const debugEl = document.getElementById('ai-debug');
-    const moodPill = document.getElementById('mood-pill');
-    const liveCommentsEl = document.getElementById('live-comments');
+    const filterEl = document.getElementById('ai-filter');
+    const lyricTitleEl = document.getElementById('lyric-title');
+    const lyricBodyEl = document.getElementById('lyric-body');
+    const debugEl = document.getElementById('ai-debug');
+    const moodPill = document.getElementById('mood-pill');
+    const liveCommentsEl = document.getElementById('live-comments');
 
-    // Firebase config: REPLACE with your config values
-    const firebaseConfig = {
-        apiKey: "AIzaSyC34piii16GqYm_It_O4Qm3-5J-j0eJg4w",
-        authDomain: "live-show-comments.firebaseapp.com",
-        projectId: "live-show-comments",
-        storageBucket: "live-show-comments.firebasestorage.app",
-        messagingSenderId: "682418279340",
-        appId: "1:682418279340:web:e97f0d4c1317eacddc2009",
-        databaseURL: "https://live-show-comments-default-rtdb.asia-southeast1.firebasedatabase.app/"
-    };
+    // Firebase config: REPLACE with your config values
+    const firebaseConfig = {
+      apiKey: "AIzaSyC34piii16GqYm_It_O4Qm3-5J-j0eJg4w",
+      authDomain: "live-show-comments.firebaseapp.com",
+      projectId: "live-show-comments",
+      storageBucket: "live-show-comments.firebasestorage.app",
+      messagingSenderId: "682418279340",
+      appId: "1:682418279340:web:e97f0d4c1317eacddc2009",
+      databaseURL: "https://live-show-comments-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    // Use a root ref to allow removal on load, and a query for last-20 listening
-    const commentsRootRef = db.ref("comments");
-    const commentsRef = commentsRootRef.limitToLast(20);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    // Use a root ref to allow removal on load, and a query for last-20 listening
+    const commentsRootRef = db.ref("comments");
+    const commentsRef = commentsRootRef.limitToLast(20);
 
-    // Clear comment records on every page load (server-side removal).
-    // This ensures records are reset each refresh as requested.
-    commentsRootRef.remove()
-      .then(() => { debugEl.textContent = 'Comment records cleared on page load.'; })
-      .catch((e) => { console.warn('Failed to clear comments:', e); });
+    // Clear comment records on every page load (server-side removal).
+    commentsRootRef.remove()
+      .then(() => { debugEl.textContent = 'Comment records cleared on page load.'; })
+      .catch((e) => { console.warn('Failed to clear comments:', e); });
 
-    // Store recent comments locally
-    let recentComments = [];
+    // Store recent comments locally
+    let recentComments = [];
 
-    // For every incoming message: show floating UI and trigger AI analysis (serialized)
-    commentsRef.on("child_added", async (snapshot) => {
-      const data = snapshot.val();
-      if (!data?.text) return;
+    // For every incoming message: show floating UI and trigger AI analysis (serialized)
+    commentsRef.on("child_added", async (snapshot) => {
+      const data = snapshot.val();
+      if (!data?.text) return;
 
-      recentComments.push(data.text);
-      if (recentComments.length > 10) recentComments.shift();
-      updateLiveFeed();
-      showFloatingComment(data.text);
+      recentComments.push(data.text);
+      if (recentComments.length > 10) recentComments.shift();
+      updateLiveFeed();
+      showFloatingComment(data.text);
+      // Trigger real AI analysis for the latest comment
+      analyzeCrowdWithAI([data.text]);
+    });
 
-      // Trigger real AI analysis for the latest comment
-      analyzeCrowdWithAI([data.text]);
-    });
+    // Show a floating comment on the stage for a few seconds
+    function showFloatingComment(text) {
+      const wrapper = document.getElementById('stage-wrapper');
+      if (!wrapper) return;
+      const el = document.createElement('div');
+      el.className = 'floating-comment';
+      el.textContent = text;
 
-    // Show a floating comment on the stage for a few seconds
-    function showFloatingComment(text) {
-      const wrapper = document.getElementById('stage-wrapper');
-      if (!wrapper) return;
-      const el = document.createElement('div');
-      el.className = 'floating-comment';
-      el.textContent = text;
+      // random position within wrapper (avoid edges)
+      const w = wrapper.clientWidth;
+      const h = wrapper.clientHeight;
+      const left = Math.max(8, Math.floor(Math.random() * (w - 160)));
+      const top = Math.max(8, Math.floor(Math.random() * (h - 60)));
+      el.style.left = `${left}px`;
+      el.style.top = `${top}px`;
 
-      // random position within wrapper (avoid edges)
-      const w = wrapper.clientWidth;
-      const h = wrapper.clientHeight;
-      const left = Math.max(8, Math.floor(Math.random() * (w - 160)));
-      const top = Math.max(8, Math.floor(Math.random() * (h - 60)));
-      el.style.left = `${left}px`;
-      el.style.top = `${top}px`;
+      // slight random rotation to make it non-directional
+      el.style.transform = `rotate(${(Math.random()-0.5)*12}deg)`;
 
-      // slight random rotation to make it non-directional
-      el.style.transform = `rotate(${(Math.random()-0.5)*12}deg)`;
+      wrapper.appendChild(el);
 
-      wrapper.appendChild(el);
+      // remove after animation duration + small buffer (5s animation → remove at ~5200ms)
+      setTimeout(() => {
+        el.remove();
+      }, 5200);
+    }
 
-      // remove after animation duration + small buffer (5s animation → remove at ~5200ms)
-      setTimeout(() => {
-        el.remove();
-      }, 5200);
-    }
+    // Restore missing UI helpers
+    function updateLiveFeed() {
+      liveCommentsEl.innerHTML = recentComments.length
+        ? recentComments.map(c => `<div style="margin: 2px 0; opacity: 0.8;">${escapeHtml(c)}</div>`).join('')
+        : 'No comments yet...';
+      liveCommentsEl.scrollTop = liveCommentsEl.scrollHeight;
+    }
 
-    // Restore missing UI helpers
-    function updateLiveFeed() {
-      liveCommentsEl.innerHTML = recentComments.length
-        ? recentComments.map(c => `<div style="margin: 2px 0; opacity: 0.8;">${escapeHtml(c)}</div>`).join('')
-        : 'No comments yet...';
-      liveCommentsEl.scrollTop = liveCommentsEl.scrollHeight;
-    }
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    // Cloudflare Worker URL - This will now handle the secret API call
-    const WORKER_PROXY_URL = "https://llm-cors-proxy.yishunchiu007.workers.dev";
+    // Cloudflare Worker URL - This will now handle the secret API call
+    const WORKER_PROXY_URL = "https://llm-cors-proxy.yishunchiu007.workers.dev";
     
-    // AI call locking to avoid concurrent requests when many users send at the same time
-    let aiRunning = false;
-    let pendingRun = false;
-    let pendingComments = null;
+    // AI call locking to avoid concurrent requests when many users send at the same time
+    let aiRunning = false;
+    let pendingRun = false;
+    let pendingComments = null;
 
-    // Call AI via the Worker to analyze recent comments and get stage plan
-    async function analyzeCrowdWithAI(comments) {
-      if (aiRunning) {
-        pendingRun = true;
-        pendingComments = comments;
-        debugEl.textContent = "🤖 AI busy — queued latest comments.";
-        return;
-      }
-      aiRunning = true;
-      debugEl.textContent = "🤖 AI analyzing crowd (via Worker)...";
+    // Call AI via the Worker to analyze recent comments and get stage plan
+    async function analyzeCrowdWithAI(comments) {
+      if (aiRunning) {
+        pendingRun = true;
+        pendingComments = comments;
+        debugEl.textContent = "🤖 AI busy — queued latest comments.";
+        return;
+      }
+      aiRunning = true;
+      debugEl.textContent = "🤖 AI analyzing crowd (via Worker)...";
 
-      try {
-        // **CALL THE WORKER**
-        const response = await fetch(WORKER_PROXY_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            // Add any custom header your worker expects to signal an AI plan request
-            'X-Action-Type': 'ai-stage-plan' 
-          },
-          body: JSON.stringify({ comments: comments })
-        });
+      try {
+        // **CALL THE WORKER**
+        const response = await fetch(WORKER_PROXY_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // Add any custom header your worker expects to signal an AI plan request
+            'X-Action-Type': 'ai-stage-plan' 
+          },
+          body: JSON.stringify({ comments: comments })
+        });
 
-        if (!response.ok) {
-          throw new Error(`Worker failed with status ${response.status}: ${await response.text()}`);
-        }
+        if (!response.ok) {
+          throw new Error(`Worker failed with status ${response.status}: ${await response.text()}`);
+        }
 
-        const plan = await response.json();
+        const plan = await response.json();
         
-        applyStagePlan(plan);
-        debugEl.textContent = `✅ AI Plan received from Worker: ${plan.effect}`;
-      } catch (e) {
-        debugEl.textContent = `Error calling AI Worker: ${e.message}`;
-        moodPill.textContent = 'Mood: 🚨';
-      } finally {
-        aiRunning = false;
-        if (pendingRun) {
-          pendingRun = false;
-          const toRun = pendingComments || comments;
-          pendingComments = null;
-          analyzeCrowdWithAI(toRun);
-        }
-      }
-    }
+        applyStagePlan(plan);
+        debugEl.textContent = `✅ AI Plan received from Worker: ${plan.effect}`;
+      } catch (e) {
+        debugEl.textContent = `Error calling AI Worker: ${e.message}`;
+        moodPill.textContent = 'Mood: 🚨';
+      } finally {
+        aiRunning = false;
+        if (pendingRun) {
+          pendingRun = false;
+          const toRun = pendingComments || comments;
+          pendingComments = null;
+          analyzeCrowdWithAI(toRun);
+        }
+      }
+    }
 
-    // Extract JSON substring from text (no longer needed if Worker returns clean JSON)
-    function extractJSONFromText(text) {
-      // try to find the first "{" and last "}" that make valid JSON
-      const first = text.indexOf('{');
-      const last = text.lastIndexOf('}');
-      if (first === -1 || last === -1 || last <= first) return null;
-      const candidate = text.slice(first, last + 1);
-      return candidate;
-    }
+    function applyStagePlan(plan) {
+      // Map incoming intensity (0.1-1.0) to percent and category (1..10)
+      const inIntensity = Math.max(0.0, Math.min(1.0, plan.intensity ?? 0.5));
+      const percent = Math.round(inIntensity * 100);
+      const category = percent === 0 ? 0 : Math.min(9, Math.ceil(percent / 10) - 1);
+      const strength = (category + 1) / 10; // 0.1 .. 1.0
 
-    function applyStagePlan(plan) {
-      // Map incoming intensity (0.1-1.0) to percent and category (1..10)
-      const inIntensity = Math.max(0.0, Math.min(1.0, plan.intensity ?? 0.5));
-      const percent = Math.round(inIntensity * 100);
-      const category = percent === 0 ? 0 : Math.min(9, Math.ceil(percent / 10) - 1);
-      const strength = (category + 1) / 10; // 0.1 .. 1.0
+      // 10-category → effect mapping (light → strong) with base (pale) and vivid colors + mood label
+      const EFFECT_MAP = [
+        { effect: 'SPARKLE', baseColor: '#e6f7ff', vividColor: '#7fd3ff', mood: '✨ Calm'}, // 1
+        { effect: 'CHILL_WAVE', baseColor: '#eafcff', vividColor: '#4fd1e0', mood: '🌊 Chill'}, // 2
+        { effect: 'COZY_MODE', baseColor: '#eef6ff', vividColor: '#60a5fa', mood: '🌙 Cozy'}, // 3
+        { effect: 'PULSE_NEON', baseColor: '#f0fff4', vividColor: '#34d399', mood: '💡 Pulse'}, // 4
+        { effect: 'STROBE_BLUE', baseColor: '#f2f8ff', vividColor: '#3b82f6', mood: '🔵 Strobe'}, // 5
+        { effect: 'STROBE_RED', baseColor: '#fff3f3', vividColor: '#ef4444', mood: '🔴 Strobe'}, // 6
+        { effect: 'LASER_BURST', baseColor: '#fff0fb', vividColor: '#ff6ec7', mood: '⚡ Laser'}, // 7
+        { effect: 'FIREWORKS', baseColor: '#fff8f0', vividColor: '#ffb020', mood: '🎆 Fireworks'}, // 8
+        { effect: 'ENCORE_GOLD', baseColor: '#fff9f2', vividColor: '#ffc857', mood: '✨ Encore'}, // 9
+        { effect: 'RAINBOW_FLOW', baseColor: '#fff6fb', vividColor: '#ff4da6', mood: '🌈 Riot'} // 10
+      ];
 
-      // 10-category → effect mapping (light → strong) with base (pale) and vivid colors + mood label
-      const EFFECT_MAP = [
-        { effect: 'SPARKLE',      baseColor: '#e6f7ff', vividColor: '#7fd3ff',  mood: '✨ Calm'    }, // 1
-        { effect: 'CHILL_WAVE',   baseColor: '#eafcff', vividColor: '#4fd1e0',  mood: '🌊 Chill'   }, // 2
-        { effect: 'COZY_MODE',    baseColor: '#eef6ff', vividColor: '#60a5fa',  mood: '🌙 Cozy'    }, // 3
-        { effect: 'PULSE_NEON',   baseColor: '#f0fff4', vividColor: '#34d399',  mood: '💡 Pulse'   }, // 4
-        { effect: 'STROBE_BLUE',  baseColor: '#f2f8ff', vividColor: '#3b82f6',  mood: '🔵 Strobe'  }, // 5
-        { effect: 'STROBE_RED',   baseColor: '#fff3f3', vividColor: '#ef4444',  mood: '🔴 Strobe'  }, // 6
-        { effect: 'LASER_BURST',  baseColor: '#fff0fb', vividColor: '#ff6ec7',  mood: '⚡ Laser'    }, // 7
-        { effect: 'FIREWORKS',    baseColor: '#fff8f0', vividColor: '#ffb020',  mood: '🎆 Fireworks'}, // 8
-        { effect: 'ENCORE_GOLD',  baseColor: '#fff9f2', vividColor: '#ffc857',  mood: '✨ Encore'   }, // 9
-        { effect: 'RAINBOW_FLOW', baseColor: '#fff6fb', vividColor: '#ff4da6',  mood: '🌈 Riot'     }  // 10
-      ];
+      const chosen = EFFECT_MAP[category];
 
-      const chosen = EFFECT_MAP[category];
+      // Mix a pale base color and a vivid color according to strength so low categories look pale/calm and high are vivid/sharp
+      function mixHexColors(a, b, t) {
+        const pa = a.replace('#','');
+        const pb = b.replace('#','');
+        const ar = parseInt(pa.substring(0,2),16), ag = parseInt(pa.substring(2,4),16), ab = parseInt(pa.substring(4,6),16);
+        const br = parseInt(pb.substring(0,2),16), bg = parseInt(pb.substring(2,4),16), bb = parseInt(pb.substring(4,6),16);
+        const rr = Math.round(ar + (br - ar) * t);
+        const rg = Math.round(ag + (bg - ag) * t);
+        const rb = Math.round(ab + (bb - ab) * t);
+        return `#${rr.toString(16).padStart(2,'0')}${rg.toString(16).padStart(2,'0')}${rb.toString(16).padStart(2,'0')}`;
+      }
 
-      // Mix a pale base color and a vivid color according to strength so low categories look pale/calm and high are vivid/sharp
-      function mixHexColors(a, b, t) {
-        const pa = a.replace('#','');
-        const pb = b.replace('#','');
-        const ar = parseInt(pa.substring(0,2),16), ag = parseInt(pa.substring(2,4),16), ab = parseInt(pa.substring(4,6),16);
-        const br = parseInt(pb.substring(0,2),16), bg = parseInt(pb.substring(2,4),16), bb = parseInt(pb.substring(4,6),16);
-        const rr = Math.round(ar + (br - ar) * t);
-        const rg = Math.round(ag + (bg - ag) * t);
-        const rb = Math.round(ab + (bb - ab) * t);
-        return `#${rr.toString(16).padStart(2,'0')}${rg.toString(16).padStart(2,'0')}${rb.toString(16).padStart(2,'0')}`;
-      }
+      const primaryHex = plan.primaryColor || mixHexColors(chosen.baseColor, chosen.vividColor, strength);
+      const vividHex = mixHexColors(chosen.baseColor, chosen.vividColor, Math.min(1, strength + 0.25));
 
-      const primaryHex = plan.primaryColor || mixHexColors(chosen.baseColor, chosen.vividColor, strength);
-      const vividHex = mixHexColors(chosen.baseColor, chosen.vividColor, Math.min(1, strength + 0.25));
+      // Visual strength depends on category (increasing): change opacity, saturation, blur → sharpness
+      filterEl.style.background = `radial-gradient(circle at 50% 20%, ${hexWithAlpha(primaryHex, 0.25 + strength*0.6)}, transparent 70%)`;
+      filterEl.style.opacity = 0.08 + strength * 0.9; // subtle -> bold
 
-      // Visual strength depends on category (increasing): change opacity, saturation, blur → sharpness
-      filterEl.style.background = `radial-gradient(circle at 50% 20%, ${hexWithAlpha(primaryHex, 0.25 + strength*0.6)}, transparent 70%)`;
-      filterEl.style.opacity = 0.08 + strength * 0.9; // subtle -> bold
+      // Beams become more opaque, more saturated, and sharper as strength increases
+      document.querySelectorAll('.beam').forEach((b, i) => {
+        const beamOpacity = (0.03 + strength * 0.85);
+        b.style.opacity = beamOpacity.toString();
+        // blur reduces with strength to make beams sharper at high intensity
+        const blurPx = Math.max(0.5, 4 - (strength * 3.5));
+        b.style.filter = `blur(${blurPx}px)`;
+        b.style.background = `radial-gradient(circle at 50% 0%, ${hexWithAlpha(vividHex, 0.95)}, transparent 65%)`;
+      });
 
-      // Beams become more opaque, more saturated, and sharper as strength increases
-      document.querySelectorAll('.beam').forEach((b, i) => {
-        const beamOpacity = (0.03 + strength * 0.85);
-        b.style.opacity = beamOpacity.toString();
-        // blur reduces with strength to make beams sharper at high intensity
-        const blurPx = Math.max(0.5, 4 - (strength * 3.5));
-        b.style.filter = `blur(${blurPx}px)`;
-        b.style.background = `radial-gradient(circle at 50% 0%, ${hexWithAlpha(vividHex, 0.95)}, transparent 65%)`;
-      });
+      // Update lyric / UI; show the category-mapped effect and mood
+      lyricTitleEl.textContent = plan.mcLine || 'AI MC reacting to the crowd...';
+      lyricBodyEl.textContent = `Effect: ${chosen.effect}\nIntensity: ${percent}% (category ${category + 1}/10)\n\n${plan.explanation || ''}`;
+      moodPill.textContent = 'Mood: ' + chosen.mood;
+      debugEl.textContent += `\n\n[Displayed plan: ${percent}% → category ${category + 1} → ${chosen.effect} / ${chosen.mood}]`;
+    }
 
-      // Platform glow stronger and more vivid with strength
-      const stagePlatform = document.getElementById('stage-platform');
-      if (stagePlatform) {
-        const glowSize = 8 + (strength * 120);
-        stagePlatform.style.boxShadow = `0 0 ${glowSize}px ${hexWithAlpha(vividHex, 0.9 * strength)}`;
-      }
-
-      // Update lyric / UI; show the category-mapped effect and mood
-      lyricTitleEl.textContent = plan.mcLine || 'AI MC reacting to the crowd...';
-      lyricBodyEl.textContent =
-        `Effect: ${chosen.effect}\nIntensity: ${percent}% (category ${category + 1}/10)\n\n${plan.explanation || ''}`;
-
-      const moodLabel = chosen.mood || '🎨 Scene';
-      moodPill.textContent = 'Mood: ' + moodLabel;
-      debugEl.textContent += `\n\n[Displayed plan: ${percent}% → category ${category + 1} → ${chosen.effect} / ${moodLabel}]`;
-    }
-
-    function hexWithAlpha(hex, alpha) {
-      const c = hex.replace('#', '');
-      const r = parseInt(c.substring(0, 2), 16);
-      const g = parseInt(c.substring(2, 4), 16);
-      const b = parseInt(c.substring(4, 6), 16);
-      return `rgba(${r},${g},${b},${alpha})`;
-    }
-  </script>
+    function hexWithAlpha(hex, alpha) {
+      const c = hex.replace('#', '');
+      const r = parseInt(c.substring(0, 2), 16);
+      const g = parseInt(c.substring(2, 4), 16);
+      const b = parseInt(c.substring(4, 6), 16);
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+  </script>
 </body>
 </html>
