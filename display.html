@@ -196,17 +196,72 @@
       100% { opacity: 0; transform: translateY(-48px) scale(0.98) rotate(2deg); }
     }
 
-    .encore-bar {
-      width: 100%; height: 20px; background: #1e293b; border-radius: 8px; overflow: hidden; box-shadow: 0 0 12px rgba(255,215,0,0.3);
+    /* --- ENCORE METER --- */
+    #encore-container {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999;                 /* always on top */
+      text-align: center;
+      pointer-events: none;
+      animation: fadeInDown 0.8s ease-out;
     }
 
-    /* 5-second encore explosion effect */
+    #encore-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #ffd700;
+      text-shadow: 0 0 20px #000, 0 0 40px #ff6b6b;
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+    }
+
+    .encore-bar {
+      width: 340px;
+      height: 28px;
+      background: rgba(0,0,0,0.75);
+      border: 2px solid #ffd700;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 0 30px rgba(255,215,0,0.6);
+      backdrop-filter: blur(10px);
+    }
+
+    #encore-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #ffd700, #ff9d00, #ff4444);
+      border-radius: 12px;
+      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 20px #ff6b6b;
+    }
+
+    #encore-count {
+      margin-top: 8px;
+      font-size: 20px;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 0 20px #ffd700;
+    }
+
+    /* MASSIVE ENCORE EXPLOSION (when 10 votes) */
     #encore-explosion {
-      position: absolute; inset: 0; pointer-events: none; z-index: 100;
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1000;                /* even higher than meter */
       background: radial-gradient(circle at center, #ffc857 0%, #ff6b6b 50%, transparent 80%);
-      opacity: 0; animation: encoreBlast 3s ease-out forwards;
-      display: flex; align-items: center; justify-content: center; font-size: 120px; font-weight: 900;
-      color: white; text-shadow: 0 0 40px gold; backdrop-filter: blur(4px);
+      opacity: 0;
+      animation: encoreBlast 3.8s ease-out forwards;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 140px;
+      font-weight: 900;
+      color: white;
+      text-shadow: 0 0 60px gold, 0 0 120px #ff6b6b;
+      backdrop-filter: blur(4px);
     }
 
     @keyframes encoreBlast {
@@ -214,6 +269,11 @@
       20%  { opacity: 1; transform: scale(1.1); }
       80%  { opacity: 0.8; transform: scale(1); }
       100% { opacity: 0; transform: scale(1.3); }
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
   </style>
 </head>
@@ -225,6 +285,13 @@
   <div id="layout">
     <!-- LEFT: STAGE -->
     <div id="stage-wrapper">
+      <div id="encore-container">
+        <div id="encore-title">ENCORE</div>
+        <div class="encore-bar">
+          <div id="encore-fill"></div>
+        </div>
+        <div id="encore-count">0/10</div>
+      </div>
       <!-- Image background (default) -->
       <!-- <img id="background-content" src="1.jpg" alt="Stage Background Image" style="z-index: 1;"> -->
 
@@ -290,7 +357,7 @@
       </div>
 
       <!-- ENCORE METER -->
-      <div style="margin-top:14px;">
+      <!-- <div style="margin-top:14px;">
         <div style="font-size:13px; opacity:0.9; margin-bottom:6px; text-align:center;">
           Encore
         </div>
@@ -300,7 +367,7 @@
         <div style="text-align:center; font-size:12px; margin-top:6px; color:#ffd700; font-weight:600;">
           <span id="encore-count">0</span>/10 votes
         </div>
-      </div>
+      </div> -->
 
       <div id="lyric-wall" style="position:static; width:100%; max-height:160px; margin-top:8px; z-index:9;">
         <div id="lyric-title">Waiting for crowd...</div>
