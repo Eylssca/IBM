@@ -195,6 +195,26 @@
       80% { opacity: 1; transform: translateY(-24px) scale(1.02) rotate(4deg); }
       100% { opacity: 0; transform: translateY(-48px) scale(0.98) rotate(2deg); }
     }
+
+    .encore-bar {
+      width: 100%; height: 20px; background: #1e293b; border-radius: 8px; overflow: hidden; box-shadow: 0 0 12px rgba(255,215,0,0.3);
+    }
+
+    /* 5-second encore explosion effect */
+    #encore-explosion {
+      position: absolute; inset: 0; pointer-events: none; z-index: 100;
+      background: radial-gradient(circle at center, #ffc857 0%, #ff6b6b 50%, transparent 80%);
+      opacity: 0; animation: encoreBlast 3s ease-out forwards;
+      display: flex; align-items: center; justify-content: center; font-size: 120px; font-weight: 900;
+      color: white; text-shadow: 0 0 40px gold; backdrop-filter: blur(4px);
+    }
+
+    @keyframes encoreBlast {
+      0%   { opacity: 0; transform: scale(0.3); }
+      20%  { opacity: 1; transform: scale(1.1); }
+      80%  { opacity: 0.8; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.3); }
+    }
   </style>
 </head>
 <body>
@@ -269,6 +289,19 @@
         No comments yet...
       </div>
 
+      <!-- ENCORE METER -->
+      <div style="margin-top:14px;">
+        <div style="font-size:13px; opacity:0.9; margin-bottom:6px; text-align:center;">
+          Encore
+        </div>
+        <div class="encore-bar">
+          <div id="encore-fill" style="width:0%; height:22px; background:linear-gradient(90deg,#ffd700,#ff6b6b); border-radius:8px; transition:width 0.7s cubic-bezier(0.4,0,0.2,1); box-shadow:0 0 16px rgba(255,215,0,0.5);"></div>
+        </div>
+        <div style="text-align:center; font-size:12px; margin-top:6px; color:#ffd700; font-weight:600;">
+          <span id="encore-count">0</span>/10 votes
+        </div>
+      </div>
+
       <div id="lyric-wall" style="position:static; width:100%; max-height:160px; margin-top:8px; z-index:9;">
         <div id="lyric-title">Waiting for crowd...</div>
         <div id="lyric-body" style="font-size:12px; opacity:0.9;">Scan QR → Send comments → Watch AI react!</div>
@@ -284,6 +317,31 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <script>
+    // Encore system
+    let encoreVotes = 0;
+    const ENCORE_THRESHOLD = 10;
+
+    function addEncoreVote() {
+      encoreVotes++;
+      const percent = (encoreVotes % 10) * 10;
+      document.getElementById('encore-count').textContent = encoreVotes % 10;
+      document.getElementById('encore-fill').style.width = `${percent}%`;
+
+      if (encoreVotes % 10 === 0) {
+        triggerEncoreExplosion();
+      }
+    }
+
+    function triggerEncoreExplosion() {
+      const explosion = document.createElement('div');
+      explosion.id = 'encore-explosion';
+      explosion.textContent = 'ENCORE!!!';
+      document.getElementById('stage-wrapper').appendChild(explosion);
+
+      // Auto-remove after animation
+      setTimeout(() => explosion.remove(), 3800);
+    }
+
     const filterEl = document.getElementById('ai-filter');
     const lyricTitleEl = document.getElementById('lyric-title');
     const lyricBodyEl = document.getElementById('lyric-body');
@@ -291,7 +349,7 @@
     const moodPill = document.getElementById('mood-pill');
     const liveCommentsEl = document.getElementById('live-comments');
 
-    // Firebase config: REPLACE with your config values
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyC34piii16GqYm_It_O4Qm3-5J-j0eJg4w",
       authDomain: "live-show-comments.firebaseapp.com",
@@ -320,6 +378,13 @@
     commentsRef.on("child_added", async (snapshot) => {
       const data = snapshot.val();
       if (!data?.text) return;
+
+      const text2 = data.text.toLowerCase();
+
+      // ENCORE VOTE DETECTION
+      if (text2.includes("encore")) {
+        addEncoreVote();
+      }
 
       recentComments.push(data.text);
       if (recentComments.length > 10) recentComments.shift();
