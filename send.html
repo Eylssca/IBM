@@ -11,10 +11,12 @@
       padding: 20px;
       background: #121212;
       color: #fff;
+      min-height: 100vh;
     }
     h1 {
       font-size: 20px;
       margin-bottom: 10px;
+      text-align: center;
     }
     form {
       display: flex;
@@ -47,11 +49,49 @@
       font-size: 14px;
       height: 18px;
       margin-top: 4px;
+      text-align: center;
+    }
+
+    /* New: Emoji reactions — same style as your original design */
+    .emoji-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 20px 0 10px;
+      flex-wrap: wrap;
+    }
+    .emoji-btn {
+      width: 56px;
+      height: 56px;
+      font-size: 32px;
+      background: #1e1e1e;
+      border: 2px solid #333;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .emoji-btn:hover {
+      transform: scale(1.1);
+      border-color: #555;
+    }
+    .emoji-btn:active {
+      transform: scale(0.95);
+    }
+    .or {
+      text-align: center;
+      margin: 16px 0 8px;
+      color: #888;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
   <h1>Send a short comment</h1>
+
+  <!-- Original text input — unchanged -->
   <form id="comment-form">
     <textarea id="comment-input" maxlength="60" placeholder="Type up to 60 characters"></textarea>
     <div class="counter"><span id="len">0</span>/60</div>
@@ -59,7 +99,20 @@
     <div class="msg" id="msg"></div>
   </form>
 
-  <!-- Firebase SDKs -->
+  <!-- New: Emoji reactions — perfectly matches your original style -->
+  <div class="or">or tap your reaction</div>
+  <div class="emoji-row">
+    <div class="emoji-btn" data-text="Is on fire">🔥</div>
+    <div class="emoji-btn" data-text="ENCORE!!! MORE!!!">🙌🏻</div>
+    <div class="emoji-btn" data-text="I love this so much">💓</div>
+    <div class="emoji-btn" data-text="WOW amazing">😮</div>
+    <div class="emoji-btn" data-text="This is boring">😪</div>
+    <div class="emoji-btn" data-text="Fair show, not bad, keep it up">🙂</div>
+    <div class="emoji-btn" data-text="Is crazy">⚡</div>
+    <div class="emoji-btn" data-text="Is vivid">🌈</div>
+  </div>
+
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -94,23 +147,31 @@
         msgEl.textContent = "Please type something.";
         return;
       }
-      if (text.length > 60) {
-        msgEl.textContent = "Too long.";
-        return;
-      }
+      sendComment(text);
+    });
+
+    // Emoji click → send predefined powerful message
+    document.querySelectorAll(".emoji-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const text = btn.getAttribute("data-text");
+        sendComment(text);
+      });
+    });
+
+    function sendComment(text) {
+      msgEl.textContent = "Sent!";
       commentsRef.push({
         text,
         ts: Date.now()
       }).then(() => {
         input.value = "";
         lenSpan.textContent = "0";
-        msgEl.textContent = "Sent!";
         setTimeout(() => msgEl.textContent = "", 1500);
-      }).catch((err) => {
+      }).catch(err => {
         msgEl.textContent = "Error, try again.";
         console.error(err);
       });
-    });
+    }
   </script>
 </body>
 </html>
