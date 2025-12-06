@@ -524,12 +524,18 @@
         addEncoreVote();
       }
 
-      recentComments.push(data.text);
-      if (recentComments.length > 10) recentComments.shift();
-      updateLiveFeed();
-      showFloatingComment(data.text);
-      // Trigger real AI analysis for the latest comment
-      analyzeCrowdWithAI([data.text]);
+      // recentComments.push(data.text);
+      // if (recentComments.length > 10) recentComments.shift();
+      // updateLiveFeed();
+      // showFloatingComment(data.text);
+      // // Trigger real AI analysis for the latest comment
+      // analyzeCrowdWithAI([data.text]);
+
+      // CHANGE 1: Store original text first
+      const originalText = data.text;
+
+      // CHANGE 2: Call AI with original text
+      analyzeCrowdWithAI([originalText]);
     });
 
     // Show a floating comment on the stage for a few seconds
@@ -582,39 +588,86 @@
     let pendingComments = null;
 
     // Call AI via the Worker to analyze recent comments and get stage plan
+    // async function analyzeCrowdWithAI(comments) {
+    //   if (aiRunning) {
+    //     pendingRun = true;
+    //     pendingComments = comments;
+    //     debugEl.textContent = "🤖 AI busy — queued latest comments.";
+    //     return;
+    //   }
+    //   aiRunning = true;
+    //   debugEl.textContent = "🤖 AI analyzing crowd (via Worker)...";
+
+    //   try {
+    //     // **CALL THE WORKER**
+    //     const response = await fetch(WORKER_PROXY_URL, {
+    //       method: 'POST',
+    //       headers: {
+    //         'Content-Type': 'application/json',
+    //         // Add any custom header your worker expects to signal an AI plan request
+    //         'X-Action-Type': 'ai-stage-plan' 
+    //       },
+    //       body: JSON.stringify({ comments: comments })
+    //     });
+
+    //     if (!response.ok) {
+    //       throw new Error(`Worker failed with status ${response.status}: ${await response.text()}`);
+    //     }
+
+    //     const plan = await response.json();
+        
+    //     applyStagePlan(plan);
+    //     debugEl.textContent = `✅ AI Plan received from Worker: ${plan.effect}`;
+    //   } catch (e) {
+    //     debugEl.textContent = `Error calling AI Worker: ${e.message}`;
+    //     moodPill.textContent = 'Mood: 🚨';
+    //   } finally {
+    //     aiRunning = false;
+    //     if (pendingRun) {
+    //       pendingRun = false;
+    //       const toRun = pendingComments || comments;
+    //       pendingComments = null;
+    //       analyzeCrowdWithAI(toRun);
+    //     }
+    //   }
+    // }
+
     async function analyzeCrowdWithAI(comments) {
       if (aiRunning) {
         pendingRun = true;
         pendingComments = comments;
-        debugEl.textContent = "🤖 AI busy — queued latest comments.";
+        debugEl.textContent = "AI busy — queued latest comments.";
         return;
       }
       aiRunning = true;
-      debugEl.textContent = "🤖 AI analyzing crowd (via Worker)...";
+      debugEl.textContent = "AI analyzing crowd (via Worker)...";
 
       try {
-        // **CALL THE WORKER**
         const response = await fetch(WORKER_PROXY_URL, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            // Add any custom header your worker expects to signal an AI plan request
-            'X-Action-Type': 'ai-stage-plan' 
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ comments: comments })
         });
 
-        if (!response.ok) {
-          throw new Error(`Worker failed with status ${response.status}: ${await response.text()}`);
-        }
+        if (!response.ok) throw new Error(`Worker failed: ${await response.text()}`);
 
-        const plan = await response.json();
-        
-        applyStagePlan(plan);
-        debugEl.textContent = `✅ AI Plan received from Worker: ${plan.effect}`;
+        const result = await response.json();  // ← Now contains displayText!
+
+        const displayText = result.displayText || comments[0];  // ← NEW: translated version
+
+        // CHANGE 3: Use translated text for floating comment and live feed
+        showFloatingComment(displayText);
+        recentComments.push(displayText);
+        if (recentComments.length > 10) recentComments.shift();
+        updateLiveFeed();
+
+        // Apply stage effects using the AI plan
+        applyStagePlan(result);
+
+        debugEl.textContent = `AI: ${result.effect}`;
       } catch (e) {
-        debugEl.textContent = `Error calling AI Worker: ${e.message}`;
-        moodPill.textContent = 'Mood: 🚨';
+        debugEl.textContent = `Error: ${e.message}`;
+        moodPill.textContent = 'Mood: Error';
       } finally {
         aiRunning = false;
         if (pendingRun) {
