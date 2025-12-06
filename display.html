@@ -296,7 +296,7 @@
       <!-- <img id="background-content" src="1.jpg" alt="Stage Background Image" style="z-index: 1;"> -->
 
       <!-- Video background — smart sound handling -->
-      <video id="background-content" loop playsinline preload="auto" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;">
+      <!-- <video id="background-content" loop playsinline preload="auto" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;">
         <source src="2.mp4" type="video/mp4" />
       </video>
 
@@ -339,6 +339,61 @@
           video.muted = true;
           video.play();
         }
+      </script> -->
+
+      <!-- FINAL: Perfect video autoplay everywhere -->
+      <video id="background-content" loop playsinline muted preload="metadata" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1;">
+        <source src="2.mp4" type="video/mp4" />
+      </video>
+
+      <script>
+        const video = document.getElementById('background-content');
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        let userHasInteracted = false;
+
+        console.log("[Video] Mobile detected:", isMobile);
+
+        // === STEP 1: Try immediate muted autoplay (works 99% on mobile) ===
+        video.muted = true;
+        const playPromise = video.play();
+
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log("Muted autoplay SUCCESS (mobile or first load)");
+            })
+            .catch(err => {
+              console.warn("Muted autoplay failed → will retry on user tap", err);
+            });
+        }
+
+        // === STEP 2: Enable sound on desktop after first interaction ===
+        const enableSound = () => {
+          if (userHasInteracted) return;
+          userHasInteracted = true;
+
+          if (!isMobile) {
+            video.muted = false;
+            video.volume = 0.5;  // ← your desired desktop volume
+            video.play().then(() => {
+              console.log("SOUND ENABLED on desktop!");
+            }).catch(() => {
+              video.muted = true;
+            });
+          } else {
+            // Mobile: ensure video starts if it was blocked
+            video.play();
+          }
+
+          // Remove listeners after first interaction
+          document.removeEventListener('click', enableSound);
+          document.removeEventListener('touchstart', enableSound);
+          document.removeEventListener('keydown', enableSound);
+        };
+
+        document.addEventListener('click', enableSound, { once: true });
+        document.addEventListener('touchstart', enableSound, { once: true });
+        document.addEventListener('keydown', enableSound, { once: true });
       </script>
 
       <!-- Lighting effects ABOVE background -->
