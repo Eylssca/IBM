@@ -762,6 +762,9 @@
       const plan = MANUAL_EFFECTS[e.key];
       
       const manualComment = plan.comment;
+      if (e.key === 'ArrowUp') {
+        addEncoreVote(); // Increment the encore meter for intensity = 1.0
+      }
       recentComments.push(manualComment);
       if (recentComments.length > 10) recentComments.shift();
       updateLiveFeed();
