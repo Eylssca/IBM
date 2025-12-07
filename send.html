@@ -109,6 +109,9 @@
     <div class="emoji-btn" data-text="Is vivid🌈">🌈</div>
   </div>
 
+  <div class="or" style="margin-top: 40px;">or use arrow keys to send quick reactions<br>when using physical keyboard</div>
+  <h1>⬆️:🤩 ⬅️:🔥 ⬇️:😌 ➡️:🧊</h1>
+
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -169,6 +172,33 @@
         console.error(err);
       });
     }
+    
+    // === MANUAL KEYBOARD CONTROL FOR SENDING COMMENTS (Arrow Keys) ===
+    // Define the comments to be sent for each arrow key
+    const MANUAL_COMMENTS = {
+      'ArrowUp': "Encore! This show is incredible!🤩",
+      'ArrowRight': "Amazing setlist tonight!🔥",
+      'ArrowDown': "Just vibing with the music 😌",
+      'ArrowLeft': "A little chill for a minute 🧊"
+    };
+
+    document.addEventListener('keydown', (e) => {
+      // Check if the pressed key is one of the four arrow keys
+      if (MANUAL_COMMENTS[e.key]) {
+        e.preventDefault(); // Prevent page scroll, which is the default for arrow keys
+        
+        const manualText = MANUAL_COMMENTS[e.key];
+        
+        // 1. Send the predefined comment to Firebase
+        sendComment(manualText);
+        
+        // 2. Provide visual feedback (optional but helpful)
+        msgEl.textContent = `sent with ${e.key} key`;
+        
+        // Clear feedback after a delay
+        setTimeout(() => msgEl.textContent = "", 2000); 
+      }
+    });
   </script>
 </body>
 </html>
