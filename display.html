@@ -656,7 +656,7 @@
         const displayText = result.displayText || comments[0];  // ← NEW: translated version
 
         // CHANGE 3: Use translated text for floating comment and live feed
-        showFloatingComment(displayText);
+        showFloatingComment(comments[0]); // or comments[0] for original input
         recentComments.push(displayText);
         if (recentComments.length > 10) recentComments.shift();
         updateLiveFeed();
@@ -745,6 +745,41 @@
       const b = parseInt(c.substring(4, 6), 16);
       return `rgba(${r},${g},${b},${alpha})`;
     }
+
+    // === MANUAL KEYBOARD CONTROL (Arrow Keys) ===
+    const MANUAL_EFFECTS = {
+      ArrowUp:    { intensity: 1.0, effect: 'RAINBOW_FLOW', baseColor: '#fff6fb', vividColor: '#ff4da6', mcLine: "MAXIMUM ENERGY — LET'S GO CRAZY!!!", comment: "This show is incredible!🤩" },
+      ArrowRight: { intensity: 0.8, effect: 'FIREWORKS', baseColor: '#fff8f0', vividColor: '#ffb020', mcLine: "HONG KONG IS ON FIRE!!!", comment: "Amazing setlist tonight!🔥" },
+      ArrowDown:  { intensity: 0.5, effect: 'STROBE_BLUE', baseColor: '#f2f8ff', vividColor: '#3b82f6', mcLine: "Steady vibe — feeling the pulse!", comment: "Just vibing with the music 😌"},
+      ArrowLeft:  { intensity: 0.2, effect: "CHILL_WAVE", baseColor: '#eafcff', vividColor: "#4fd1e0", mcLine: "Chill mode — let’s cool it down~", comment: "A little chill for a minute 🧊" }
+    };
+
+    document.addEventListener('keydown', (e) => {
+      if (!MANUAL_EFFECTS[e.key]) return;
+
+      e.preventDefault(); // prevent page scroll
+
+      const plan = MANUAL_EFFECTS[e.key];
+      
+      const manualComment = plan.comment;
+      recentComments.push(manualComment);
+      if (recentComments.length > 10) recentComments.shift();
+      updateLiveFeed();
+
+      showFloatingComment(manualComment);
+
+      // Visual feedback
+      debugEl.textContent = ``;
+      moodPill.textContent = `Mood: MANUAL`;
+
+      applyStagePlan({
+        intensity: plan.intensity,
+        effect: plan.effect,
+        primaryColor: plan.color,
+        mcLine: plan.mcLine,
+        explanation: ""
+      });
+    });
   </script>
 </body>
 </html>
