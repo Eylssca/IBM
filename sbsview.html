@@ -8,7 +8,17 @@
   <title>VR Side-by-Side View</title>
   <style>
     body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: black; }
-    .container { display: flex; height: 100vh; width: 100vw; }
+    .container { 
+      display: flex;
+      height: 100vh;
+      width: 100vw; /* two full screens side-by-side */
+      transform: scale(0.82);  /* can further scale down if needed */
+      align-self: center;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: black; /* fills the black borders */
+     }
     iframe { border: none; flex: 1 0 50%; height: 100%; width: 50%; transform: scale(1); } /* Exact 50/50, no scaling issues */
   </style>
 </head>
