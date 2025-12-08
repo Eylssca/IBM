@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes"> <!-- For iOS full-screen -->
+  <meta name="mobile-web-app-capable" content="yes"> <!-- For Android full-screen -->
+  <title>VR Side-by-Side View</title>
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: black; }
+    .container { display: flex; height: 100vh; width: 100vw; }
+    iframe { border: none; flex: 1 0 50%; height: 100%; width: 50%; transform: scale(1); } /* Exact 50/50, no scaling issues */
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Left eye: your original site -->
+    <iframe src="https://eylssca.github.io/IBM/display" id="leftFrame"></iframe>
+
+    <!-- Right eye: duplicate of the same site -->
+    <iframe src="https://eylssca.github.io/IBM/display" id="rightFrame"></iframe>
+  </div>
+
+  <script>
+    // Optional: Sync scrolling between left and right
+    const left = document.getElementById('leftFrame');
+    const right = document.getElementById('rightFrame');
+
+    left.addEventListener('load', () => {
+      left.contentWindow.addEventListener('scroll', () => {
+        right.contentWindow.scrollTo(left.contentWindow.scrollX, left.contentWindow.scrollY);
+      });
+    });
+
+    right.addEventListener('load', () => {
+      right.contentWindow.addEventListener('scroll', () => {
+        left.contentWindow.scrollTo(right.contentWindow.scrollX, right.contentWindow.scrollY);
+      });
+    });
+  </script>
+</body>
+</html>
